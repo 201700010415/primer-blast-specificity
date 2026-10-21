@@ -18,7 +18,7 @@
 手动在 NCBI 网页上操作 Primer-BLAST：填表、提交、等 1–2 分钟、逐条翻命中基因……一对引物还好，十几对引物就是半天。这个工具把整条链路做成了命令：
 
 - **单对**：一条命令出结论
-- **批量**：一个 CSV 全部提交，合并成一份带红黄绿徽章的存档报告
+- **批量**：多对引物一次性提交，合并成一份带红黄绿徽章的存档报告
 - **查引物**：按基因名（支持别名）直接从 PrimerBank 拿经过验证的 qPCR 引物对
 
 ## 特性
@@ -30,11 +30,33 @@
 - **一键串联** —— `--blast` 查到引物后自动逐对跑特异性验证
 - **零依赖** —— 纯 Python 3 标准库，克隆下来就能跑，不用 pip 装任何东西
 
-## 快速开始
+## 怎么用
+
+### 方式一：对话触发（作为 Agent Skill，推荐）
+
+把仓库克隆到你 agent 的技能目录（如 Trae 的 skills 目录），skill 即被识别。之后**不需要记任何命令，用自然语言直接提需求**：
+
+> 「验证这对引物的特异性：FWD `ATGCCACCTGCTGAACGGATT` REV `CTCCGGAAGAAACTGCACCA`，人源」
+>
+> 「检查这对引物会不会脱靶，靶基因 HMOX1」
+>
+> 「Primer-BLAST 一下这对引物（小鼠）」
+>
+> 「查 HMOX1 鼠源引物」
+>
+> 「查 HMOX1 的鼠源引物，顺便把特异性也验了」
+
+**触发关键词**（中英文都认）：验证/检验引物特异性、引物脱靶检查、Primer-BLAST a primer pair、查 PrimerBank 某基因的引物。命中后 agent 按 `SKILL.md` 规范自动跑脚本、盯轮询（每 30 秒查进度，最长 10 分钟）、读结果、生成存档 HTML 报告并汇报结论——你只管提需求。
+
+几个约定：没给物种默认人源；基因名有歧义会先列候选问你，不瞎猜；解析失败/无命中/超时如实说，不编数据。
+
+**批量同样不用自己建 CSV**：把引物对直接贴在对话里，随便什么格式（编号列表、表格、从论文里复制的一段都行），agent 会自动整理成规范 CSV 再跑批量。CSV 只在你**自己手动跑命令行**时才需要准备。
+
+### 方式二：命令行直接跑
 
 需要 Python 3 和对 `ncbi.nlm.nih.gov` 的网络访问，仅此而已。
 
-### 1. 单对引物
+#### 1. 单对引物
 
 ```bash
 python scripts/blast_primer.py \
@@ -46,9 +68,11 @@ python scripts/blast_primer.py \
 
 `--organism` 省略时默认人源 `Homo sapiens`；给了 `--target-gene` 才能明确判定"脱靶"，否则按命中基因数提示。
 
-### 2. 批量验证
+#### 2. 批量验证
 
-准备一个 CSV（表头必需，列名不区分大小写）：
+> 在对话里用 skill 时**不用自己建 CSV**（见上方"对话触发"），下面的 CSV 只针对手动跑 CLI。
+
+脚本要求的 CSV 格式（表头必需，列名不区分大小写）：
 
 ```csv
 fwd,rev,organism,target_gene
@@ -62,7 +86,7 @@ python scripts/blast_primer.py --csv primers.csv --report my_report.html
 
 多对引物、多物种一律用批量模式，脚本会自动控制提交间隔、失败重试，最后汇总。
 
-### 3. 查 PrimerBank 现成引物
+#### 3. 查 PrimerBank 现成引物
 
 ```bash
 python scripts/primerbank_query.py --gene HMOX1 --species mouse
@@ -70,7 +94,7 @@ python scripts/primerbank_query.py --gene HMOX1 --species mouse
 
 结果自动保存为 `HMOX1_Mus_musculus.md`（stdout 同步输出）。`--gene` 支持官方 symbol、**别名**、纯数字 GeneID——比如查 `HMOX1` 的鼠源引物，输入别名 `HO1` 也能解析。
 
-### 4. 查完直接验（一条龙）
+#### 4. 查完直接验（一条龙）
 
 ```bash
 python scripts/primerbank_query.py --gene HMOX1 --species mouse --blast
